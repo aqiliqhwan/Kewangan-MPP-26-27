@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CATATAN KEWANGAN MPP 26/27</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Firebase SDK (Version 9 - Compatibility Version) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+
+    <style>
+        body { background-color: #f3f4f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    </style>
+</head>
+<body class="p-3 md:p-6 min-h-screen">
+
+    <div class="max-w-7xl mx-auto space-y-6">
+
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-800 rounded-2xl p-6 text-white shadow-xl flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl md:text-4xl font-extrabold tracking-wide text-center md:text-left">
+                    CATATAN KEWANGAN MPP 26/27
+                </h1>
+                <p class="text-blue-100 text-sm md:text-base mt-1 text-center md:text-left">
+                    Sistem Pengurusan & Awan Rekod Transaksi Kewangan
+                </p>
+            </div>
+            <div class="flex flex-wrap gap-2 justify-center">
+                <button onclick="openModal()" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2.5 px-5 rounded-xl shadow-lg transition flex items-center gap-2">
+                    <i class="fa-solid fa-plus-circle"></i> Tambah Transaksi
+                </button>
+                <button onclick="exportCSV()" class="bg-white/20 hover:bg-white/30 text-white font-semibold py-2.5 px-4 rounded-xl backdrop-blur-md transition flex items-center gap-2">
+                    <i class="fa-solid fa-file-excel"></i> Eksport CSV
+                </button>
+            </div>
+        </div>
+
+        <!-- Status Sambungan Awan -->
+        <div id="cloud-status" class="bg-amber-100 border-l-4 border-amber-500 text-amber-700 p-3 rounded-r text-xs md:text-sm flex items-center justify-between">
+            <span><i class="fa-solid fa-triangle-exclamation mr-2"></i> <strong>Mod Demo LocalStorage:</strong> Masukkan kunci Firebase anda dalam fail app.js untuk mod Simpanan Awan Serentak (Akses Semua Ahli).</span>
+        </div>
+
+        <!-- Ringkasan Kad Kewangan -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Duit Masuk -->
+            <div class="bg-white p-5 rounded-2xl shadow-md border-b-4 border-emerald-500 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-wider text-gray-500">Jumlah Duit Masuk (Kredit)</p>
+                    <h2 id="total-credit" class="text-2xl md:text-3xl font-black text-emerald-600 mt-1">RM 0.00</h2>
+                </div>
+                <div class="bg-emerald-100 text-emerald-600 p-3 rounded-xl">
+                    <i class="fa-solid fa-arrow-down-left text-2xl"></i>
+                </div>
+            </div>
+
+            <!-- Duit Keluar -->
+            <div class="bg-white p-5 rounded-2xl shadow-md border-b-4 border-rose-500 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-wider text-gray-500">Jumlah Duit Keluar (Debit)</p>
+                    <h2 id="total-debit" class="text-2xl md:text-3xl font-black text-rose-600 mt-1">RM 0.00</h2>
+                </div>
+                <div class="bg-rose-100 text-rose-600 p-3 rounded-xl">
+                    <i class="fa-solid fa-arrow-up-right text-2xl"></i>
+                </div>
+            </div>
+
+            <!-- JUMLAH BAKI -->
+            <div class="bg-white p-5 rounded-2xl shadow-md border-b-4 border-blue-600 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-wider text-gray-500">JUMLAH BAKI SEMASA</p>
+                    <h2 id="total-balance" class="text-2xl md:text-3xl font-black text-blue-700 mt-1">RM 0.00</h2>
+                </div>
+                <div class="bg-blue-100 text-blue-600 p-3 rounded-xl">
+                    <i class="fa-solid fa-wallet text-2xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Penapis Carian (Filters) -->
+        <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 mb-1">Carian Transaksi</label>
+                <div class="relative">
+                    <input type="text" id="search-input" oninput="renderTable()" placeholder="Cari keterangan / no resit..." class="w-full pl-9 pr-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    <i class="fa-solid fa-search absolute left-3 top-3 text-gray-400 text-xs"></i>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 mb-1">Jenis Aliran</label>
+                <select id="filter-type" onchange="renderTable()" class="w-full p-2 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    <option value="ALL">Semua Transaksi</option>
+                    <option value="MASUK">Hanya Duit Masuk (Kredit)</option>
+                    <option value="KELUAR">Hanya Duit Keluar (Debit)</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-500 mb-1">Kategori / Jenis</label>
+                <select id="filter-category" onchange="renderTable()" class="w-full p-2 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    <option value="ALL">Semua Kategori</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Jadual Rekod Transaksi -->
+        <div class="bg-white rounded-2xl shadow-md overflow-hidden border border-gray-100">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse min-w-[700px]">
+                    <thead>
+                        <tr class="bg-gray-800 text-white text-xs uppercase tracking-wider">
+                            <th class="py-3 px-4 w-12 text-center">Bil.</th>
+                            <th class="py-3 px-4">Tarikh</th>
+                            <th class="py-3 px-4">Transaksi / Keterangan</th>
+                            <th class="py-3 px-4">Jenis / Kategori</th>
+                            <th class="py-3 px-4 text-right text-emerald-300">Masuk (Kredit)</th>
+                            <th class="py-3 px-4 text-right text-rose-300">Keluar (Debit)</th>
+                            <th class="py-3 px-4 text-right">Baki</th>
+                            <th class="py-3 px-4 text-center w-24">Tindakan</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transaction-rows" class="divide-y divide-gray-100 text-sm text-gray-700">
+                        <!-- Transaksi dikemas kini melalui JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Modal Form Tambah/Edit Transaksi -->
+    <div id="modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl p-6 space-y-4 relative">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                <i class="fa-solid fa-xmark text-xl"></i>
+            </button>
+            <h2 id="modal-title" class="text-xl font-bold text-gray-800">Tambah Transaksi Kewangan</h2>
+
+            <form id="tx-form" onsubmit="handleFormSubmit(event)" class="space-y-3">
+                <input type="hidden" id="tx-id">
+                
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Jenis Rekod</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="border p-2 rounded-xl flex items-center justify-center gap-2 cursor-pointer hover:bg-gray-50">
+                            <input type="radio" name="tx-type" value="MASUK" checked>
+                            <span class="text-sm font-semibold text-emerald-600">Duit Masuk</span>
+                        </label>
+                        <label class="border p-2 rounded-xl flex items-center justify-center gap-2 cursor-pointer hover:bg-gray-50">
+                            <input type="radio" name="tx-type" value="KELUAR">
+                            <span class="text-sm font-semibold text-rose-600">Duit Keluar</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Tarikh</label>
+                        <input type="date" id="tx-date" required class="w-full p-2 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Jumlah (RM)</label>
+                        <input type="number" id="tx-amount" step="0.01" min="0.01" placeholder="0.00" required class="w-full p-2 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Transaksi (Keterangan)</label>
+                    <input type="text" id="tx-desc" placeholder="Contoh: Peruntukan HEP / Beli Alat Tulis MHS" required class="w-full p-2 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Kategori / Jenis (Boleh Taip Sendiri)</label>
+                    <input type="text" id="tx-category" list="category-suggestions" placeholder="Taip atau pilih kategori..." required class="w-full p-2 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    <datalist id="category-suggestions">
+                        <option value="Peruntukan HEP"></option>
+                        <option value="Sumbangan / Tajaan"></option>
+                        <option value="Program MHS"></option>
+                        <option value="Jamuan & Makanan"></option>
+                        <option value="Percetakan & Cenderamata"></option>
+                        <option value="Peralatan Logistik"></option>
+                    </datalist>
+                </div>
+
+                <div class="pt-3 flex gap-2 justify-end">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 border rounded-xl text-sm text-gray-600 hover:bg-gray-100">Batal</button>
+                    <button type="submit" class="px-5 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-md">Simpan Transaksi</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Panggilan Fail Logik JavaScript External -->
+    <script src="app.js"></script>
+</body>
+</html>
