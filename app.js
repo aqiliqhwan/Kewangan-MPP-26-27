@@ -13,7 +13,6 @@ let transactions = [];
 
 // Fungsi Mulakan Sambungan Firebase
 function initFirebaseSystem() {
-    // Semak samada SDK Firebase dah siap dimuat turun dari HTML
     if (typeof firebase === 'undefined') {
         console.warn("Firebase SDK belum bersedia, cuba lagi dalam 0.5 saat...");
         setTimeout(initFirebaseSystem, 500);
@@ -25,18 +24,15 @@ function initFirebaseSystem() {
             firebase.initializeApp(firebaseConfig);
         }
 
-        // Rujuk node/folder mpp_transactions
         dbRef = firebase.database().ref("mpp_transactions");
         useFirebase = true;
 
-        // Kemaskini Lencana Status Awan
         const statusEl = document.getElementById('cloud-status');
         if (statusEl) {
             statusEl.className = "bg-emerald-100 border-l-4 border-emerald-500 text-emerald-800 p-3 rounded-r text-xs md:text-sm flex items-center";
             statusEl.innerHTML = '<i class="fa-solid fa-cloud-check text-lg mr-2"></i> <strong>Awan Aktif:</strong> Disambung ke Firebase.';
         }
 
-        // Jalankan fungsi tarik data
         fetchFirebaseData();
 
     } catch (e) {
@@ -45,7 +41,6 @@ function initFirebaseSystem() {
     }
 }
 
-// Tarik data secara Realtime dari Firebase
 function fetchFirebaseData() {
     if (!dbRef) return;
 
@@ -59,7 +54,6 @@ function fetchFirebaseData() {
             });
         }
         
-        // Susun mengikut tarikh
         transactions.sort((a, b) => new Date(a.date) - new Date(b.date));
         updateUI();
     }, (error) => {
@@ -144,7 +138,6 @@ function renderTable() {
         }
     });
 
-    // Kemaskini Kad Jumlah
     if (document.getElementById('total-credit')) document.getElementById('total-credit').innerText = `RM ${totalCredit.toFixed(2)}`;
     if (document.getElementById('total-debit')) document.getElementById('total-debit').innerText = `RM ${totalDebit.toFixed(2)}`;
     if (document.getElementById('total-balance')) document.getElementById('total-balance').innerText = `RM ${currentBalance.toFixed(2)}`;
@@ -247,11 +240,9 @@ function formatDate(dStr) {
     return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
-// ==========================================
-// AUTO START SELEPAS HALAMAN DI-LOAD
-// ==========================================
+// Auto Mula
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initFirebaseSystem);
 } else {
     initFirebaseSystem();
-}
+    }
